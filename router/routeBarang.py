@@ -170,17 +170,42 @@ async def addData(
     finally:
         cursor.close()
 
-@app.put('/barang/{id}', response_model=Barang)
-def update_data(id: int, isi: Barang, loggedIn = authmiddle) :
+@app.post('/barang/{id}')
+async def update_data(
+    id: int, 
+    request: Request,
+    gambar: List[UploadFile] = File(...),
+    loggedIn = authmiddle
+) :
     try :
         cursor = conn.cursor()
+
+        uploaded_file = []
+
+        form_data = await request.form()
+        #Ambil Form Data
+        nama_barang = form_data['nama_barang']
+        harga = form_data['harga']
+        deskripsi = form_data['deskripsi']
+
+        for file in gambar:
+            file.filename = f"{uuid.uuid4()}.jpg"
+            content = await file.read()
+
+            #simpan filenya
+            with open(f"{IMAGEDIR}{file.filename}", "wb") as f:
+                f.write(content) 
+
+            uploaded_file.append(file.filename)
+        
+        gambarJson = json.dumps(uploaded_file)        
         query = "UPDATE tbbarang SET nama_barang=%s, harga=%s, deskripsi=%s where id = %s"
         # Convert the list to a JSON-formatted string
         # gambar_json = json.dumps(isi.gambar)
-        cursor.execute(query, (isi.nama_barang, isi.harga, isi.deskripsi, id))
+        cursor.execute(query, (nama_barang, harga, deskripsi, id))
         conn.commit()
         cursor.close()
-        return {**isi.dict()}
+
     except Exception as e: 
         return {
             "Error": str(e)
