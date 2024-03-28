@@ -189,3 +189,32 @@ def pesanan(
     
     finally:
         cursor.close()
+
+@app.get('/datauser/{jenisUser}')
+def getAllUser(
+    jenisUser: str,
+    credential: JwtAuthorizationCredentials = Security(access_security)
+):
+    if not credential:
+        raise HTTPException(status_code=401, detail="Unaothorized cok")
+    
+    cursor = conn.cursor()
+    try:
+        kondisi = ""
+        if jenisUser == "Karyawan":
+            kondisi = "WHERE status_user = 'Karyawan' OR roles = 'Admin'"
+        else:
+            kondisi = "WHERE status_user = 'Pelanggan'"
+
+        q1 = f"SELECT * FROM tbuser {kondisi}"
+        cursor.execute(q1)
+        colNames = [kolom[0] for kolom in cursor.description]
+        items = cursor.fetchall()
+
+        df = pd.DataFrame(items, columns=colNames)
+
+        return df.to_dict('records')
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=e.status_code)
+    finally:
+        cursor.close()
