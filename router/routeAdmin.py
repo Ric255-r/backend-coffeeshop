@@ -177,35 +177,48 @@ async def updateData(
         # Pakai multipart/form-data di requestnya
         form_data = await request.form()
 
-        q0 = "SELECT grandtotal FROM tbjual WHERE NOJUAL = %s"
-        cursor.execute(q0, (nojual, ))
+        if form_data['status_orderan'] == 'process' :
+            #Proses 
+            q0 = "SELECT grandtotal FROM tbjual WHERE NOJUAL = %s"
+            cursor.execute(q0, (nojual, ))
 
-        colNames = [kol[0] for kol in cursor.description]
-        items = cursor.fetchall()
+            colNames = [kol[0] for kol in cursor.description]
+            items = cursor.fetchall()
 
-        df = pd.DataFrame(items, columns=colNames)
-        jsonDF = df.to_dict('records')
+            df = pd.DataFrame(items, columns=colNames)
+            jsonDF = df.to_dict('records')
 
-        gTotal = jsonDF[0]['grandtotal']
-        bayarCash = form_data['bayar_cash']
+            gTotal = jsonDF[0]['grandtotal']
+            bayarCash = form_data['bayar_cash']
 
-        kembalian = 0
-        rumus = int(bayarCash) - int(gTotal)
-        if rumus == 0 :
             kembalian = 0
-        elif rumus < 0: 
-            raise HTTPException(status_code=402, detail="Bayaran Kurang dari Total")
+            rumus = int(bayarCash) - int(gTotal)
+            if rumus == 0 :
+                kembalian = 0
+            elif rumus < 0: 
+                raise HTTPException(status_code=402, detail="Bayaran Kurang dari Total")
+            else:
+                kembalian = rumus
+            
+            q1 = "UPDATE tbjual SET status_order = 'BREWING', bayar_cash = %s, kembalian = %s WHERE nojual = %s"
+            cursor.execute(q1, (bayarCash, kembalian,  nojual))
+
+            q2 = "UPDATE tbjualdetil SET status_order = 'BREWING' WHERE nojual_id = %s"
+            cursor.execute(q2, (nojual, ))
+
+            conn.commit()
+            return "Bisa Update"
         else:
-            kembalian = rumus
-        
-        q1 = "UPDATE tbjual SET status_order = 'BREWING', bayar_cash = %s, kembalian = %s WHERE nojual = %s"
-        cursor.execute(q1, (bayarCash, kembalian,  nojual))
+            # Ini Update Status jadi Done
+            q1 = "UPDATE tbjual SET status_order = 'DONE' WHERE nojual = %s"
+            cursor.execute(q1, (nojual, ))
 
-        q2 = "UPDATE tbjualdetil SET status_order = 'BREWING' WHERE nojual_id = %s"
-        cursor.execute(q2, (nojual, ))
+            q2 = "UPDATE tbjualdetil SET status_order = 'DONE' WHERE nojual_id = %s"
+            cursor.execute(q2, (nojual, ))
 
-        conn.commit()
-        return "Bisa Update"
+            conn.commit()
+            return "Bisa Update"
+
     except HTTPException as e:
         q1 = "ROLLBACK"
         cursor.execute(q1)

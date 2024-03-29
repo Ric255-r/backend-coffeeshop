@@ -50,7 +50,11 @@ def auth(isi: LoginUser) :
         if not items :
             raise HTTPException(status_code=404, detail="User Tidak Ditemukan")
         
-        stored_pass = items[0][2] #passwd
+        stored_pass = items[0][3] #passwd. ini kalo error 500, cek lagi apakah ad perubahan attr?
+        # kalo ad perubahan attr, coba print items[0], liat dia letak dmn passwd nya
+
+        # if isi.passwd != stored_pass:
+        #     raise HTTPException(status_code=401, detail="Password Salah")
 
         if not sha256_crypt.verify(isi.passwd, stored_pass) :
             raise HTTPException(status_code=401, detail="Password Salah")
