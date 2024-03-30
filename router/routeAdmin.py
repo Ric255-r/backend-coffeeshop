@@ -227,9 +227,6 @@ async def updateData(
     finally:
         cursor.close() 
 
-
-
-
 @app.get('/dataPenjualan')
 def getDataOrder(
     loggedIn = authMiddle
@@ -274,6 +271,45 @@ def getDataOrder(
     
     finally :
         cursor.close()
+
+@app.get('/dataPenjualanDetil/{bulan}')
+def getDataOrderDetil(
+    bulan: int,
+    loggedIn = authMiddle
+) :
+    cursor = conn.cursor()
+    try:
+        qJual = f"""
+            SELECT * FROM tbjual WHERE MONTH(tgltransaksi) = %s
+        """
+        cursor.execute(qJual, (bulan, ))
+        colJual = [kol[0] for kol in cursor.description]
+        itemJual = cursor.fetchall()
+
+        df = pd.DataFrame(itemJual, columns=colJual)
+        arrJual = df.to_dict('records')
+
+        qJualDetil = f"""
+            SELECT jd.*, b.nama_barang FROM tbjualdetil jd JOIN tbbarang b 
+            ON jd.id_barang = b.id WHERE MONTH(jd.created_at) = %s
+        """
+        cursor.execute(qJualDetil, (bulan, ))
+        colJualDetil = [kol[0] for kol in cursor.description]
+        itemJualDetil = cursor.fetchall()
+
+        dfDetil = pd.DataFrame(itemJualDetil, columns=colJualDetil)
+        arrJualDetil = dfDetil.to_dict('records')
+
+        return {
+            "arrJual": arrJual,
+            "arrJualDetil": arrJualDetil
+        }
+
+    except HTTPException as e:
+        return JSONResponse(content={"error": str(e)}, status_code=e.status_code)
+    finally:
+        cursor.close()
+
 
 @app.get('/dataItemTerjual')
 def getDataItemTerjual(

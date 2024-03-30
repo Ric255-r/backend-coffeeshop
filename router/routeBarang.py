@@ -158,8 +158,8 @@ async def addData(
         # Convert the list to a JSON-formatted string
         gambar_json = json.dumps(uploaded_file)
 
-        query = "INSERT INTO tbbarang (nama_barang, harga, deskripsi, gambar) values(%s, %s, %s, %s)"
-        cursor.execute(query, (nama_barang, harga, deskripsi, gambar_json))
+        query = "INSERT INTO tbbarang (nama_barang, harga, deskripsi, gambar, source_data) values(%s, %s, %s, %s, %s)"
+        cursor.execute(query, (nama_barang, harga, deskripsi, gambar_json, 'manual'))
         conn.commit()
         return "Bisa Isi"
 
@@ -329,6 +329,50 @@ def delete_gbr(id: int, isi: BuatDeleteGbr, loggedIn = authmiddle) :
         return {
             "error" : str(e)
         }
+    
+@app.post("/importDataBarang/")
+async def uploadExcel(
+    fileExcel: UploadFile, #ini request post, di body. bukan sbg parameter.
+    loggedIn = authmiddle
+) :
+    cursor = conn.cursor()
+
+    try:
+        q0 = "START TRANSACTION"
+        cursor.execute(q0)
+
+        fileExcel.filename = f"{uuid.uuid4()}.xlsx"
+        content = await fileExcel.read()
+
+        with open(f"fileExcel/{fileExcel.filename}", "wb") as f:
+            f.write(content)
+
+        df = pd.read_excel(f"fileExcel/{fileExcel.filename}")
+
+        print(df.columns) # Buat Ngecek Nama Kolom
+        
+        for index, row in df.iterrows():
+            linkBerkoma = row['gambar'].split(",") # Split Link Berdasarkan Koma,
+            jsonBerkoma = json.dumps(linkBerkoma) # dump supaya bisa masuk dlm bentuk arr ke mysql
+
+            qIns = "INSERT INTO tbbarang values (%s, %s, %s, %s, %s, %s)"
+            cursor.execute(qIns, ('', row['nama_barang'],  row['harga'], row['deskripsi'], jsonBerkoma, 'import'))
+
+        return "Sukses Import"
+            
+    except HTTPException as e:
+        qErr = "ROLLBACK"
+        cursor.execute(qErr)
+
+        return {
+            "error" : str(e)
+        }
+    finally:
+        # Biar dia ga nyimpen di storage. numpuk soalny
+        os.remove(f"fileExcel/{fileExcel.filename}")
+        conn.commit()
+        cursor.close()
+
 
 # Testing File Upload. Ini udh Jalan
 @app.post("/upload")
