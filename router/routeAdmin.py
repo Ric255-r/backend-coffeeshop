@@ -346,7 +346,13 @@ def getDataItemTerjual(
         itemThisMonth = cursor.fetchall()
 
         dfThisMonth = pd.DataFrame(itemThisMonth, columns=colThisMonth)
-        arrThisMonth = dfThisMonth.to_dict('records')[0]
+
+        # Cek Kalo kosong. kasusnya bisa kaya perubahan bulan dari maret ke april, maka dia return data kosong
+        if not dfThisMonth.empty:
+            arrThisMonth = dfThisMonth.to_dict('records')[0]
+        else:
+            arrThisMonth = {}
+
         # End Penjualan Gelas Minuman
 
         return {

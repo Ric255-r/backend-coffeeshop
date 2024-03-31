@@ -290,7 +290,7 @@ async def jualDetil(
             #End Tambahan
 
             qInsDetil = "INSERT INTO temptbjualdetil values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-            cursor.execute(qInsDetil, ('', jsonTbBarang['id'], nojual_id, ukuran_cup, variant, ice_cube, sweetness, milk, json.dumps(arrSyrup), espresso, json.dumps(arrTopping), jsonTbBarang['harga'], sum(temp_harga), qty, hrgStlhTopping, 'PENDING', '', ''))
+            cursor.execute(qInsDetil, ('', jsonTbBarang['id'], nojual_id, ukuran_cup, variant, ice_cube, sweetness, milk, json.dumps(arrSyrup), espresso, json.dumps(arrTopping), jsonTbBarang['harga'], sum(temp_harga), qty, hrgStlhTopping, 'PENDING', today, ''))
             conn.commit()
 
             # return sum(temp_harga)
@@ -322,7 +322,7 @@ def getDataPenjualan(
 ) :
     cursor = conn.cursor()
     try :
-        q1 = "SELECT b.nama_barang, b.harga, b.gambar, temp.* FROM temptbjualdetil temp JOIN tbbarang b ON temp.id_barang = b.id WHERE temp.nojual_id = %s"
+        q1 = "SELECT b.nama_barang, b.harga, b.gambar, b.source_data, temp.* FROM temptbjualdetil temp JOIN tbbarang b ON temp.id_barang = b.id WHERE temp.nojual_id = %s"
         cursor.execute(q1, (trans_num, ))
         colTempJualDetil = [kol[0] for kol in cursor.description]
         items1 = cursor.fetchall()
