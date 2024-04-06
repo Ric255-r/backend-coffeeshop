@@ -26,6 +26,11 @@ def hello_world() :
     # Extract column names dynamically
     column_names = [col[0] for col in cursor.description]
 
+    #Versi Basic
+    # column_names = []
+    # for kol in cursor.description:
+    #     column_names.append(kol[0])
+
     # Debugging: Print the cursor description
     print("Cursor description:", cursor.description)
 

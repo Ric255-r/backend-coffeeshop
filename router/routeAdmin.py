@@ -62,10 +62,11 @@ def getDataOrder(
     loggedIn = authMiddle
 ) : 
     cursor = conn.cursor()
+    print(loggedIn['status_user'])
     try:
         #Inspect aja satu satu pakai print() klo bingung
         query = """
-            SELECT j.nojual, j.tgltransaksi, j.grandtotal, j.pelanggan_id, j.buktiByr, b.nama_barang, b.gambar, jd.* FROM tbjual j 
+            SELECT j.nojual, j.tgltransaksi, j.grandtotal, j.pelanggan_id, j.buktiByr, b.nama_barang, b.gambar, b.source_data, jd.* FROM tbjual j 
             JOIN tbjualdetil jd ON j.nojual = jd.nojual_id
             JOIN tbbarang b ON jd.id_barang = b.id
             ORDER BY j.nojual DESC, j.tgltransaksi DESC
@@ -128,7 +129,8 @@ def getDataOrder(
                 'created_at': "",
                 'updated_at': "",
                 'nama_barang': row['nama_barang'],
-                'gambar': row['gambar']
+                'gambar': row['gambar'],
+                'source_data': row['source_data']
             }
 
             # tambah varjualdetil ke jualdetil array yg diletak di data['nojual']
@@ -240,7 +242,7 @@ def getDataOrder(
             FROM 
                 tbjual 
             WHERE 
-                tgltransaksi >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) 
+                tgltransaksi >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)  AND status_order = 'DONE'
             GROUP BY 
                 month
             ORDER BY 
@@ -381,7 +383,7 @@ def Omset(
             kondisi = "WHERE YEAR(tgltransaksi) = YEAR(CURDATE())"
 
         qOmset = f"""
-            SELECT SUM(grandtotal) AS grandtotal FROM tbjual {kondisi}
+            SELECT SUM(grandtotal) AS grandtotal FROM tbjual {kondisi} AND status_order = 'DONE'
         """ 
         cursor.execute(qOmset)
         colOmset = [kolom[0] for kolom in cursor.description]
@@ -391,7 +393,7 @@ def Omset(
         arrOmset = dfOmset.to_dict('records')[0]
 
         qTrans = f"""
-            SELECT COUNT(*) AS jlhTrans FROM tbjual {kondisi}
+            SELECT COUNT(*) AS jlhTrans FROM tbjual {kondisi} AND status_order = 'DONE'
         """
         cursor.execute(qTrans)
         colTrans = [kolom[0] for kolom in cursor.description]
