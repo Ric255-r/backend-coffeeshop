@@ -79,6 +79,8 @@ def auth(isi: LoginUser) :
 
         # Remove the 'passwd' key from the subject dictionary
         subject.pop('passwd', None)
+        subject.pop('created_at', None)
+        subject.pop('updated_at', None)
 
         # Create new access/refresh tokens pair
         access_token = access_security.create_access_token(subject=subject)
@@ -108,6 +110,35 @@ def register(isi: User) :
         return {
             "Error" : str(e)
         }
+    
+@app.put("/changePassword")
+async def changePass(
+    request: Request,
+    credential: JwtAuthorizationCredentials = Security(access_security)
+) :
+    cursor = conn.cursor()
+    try:
+        form = await request.json()
+        newPass = form['new_password']
+
+        qTrans = "START TRANSACTION"
+        cursor.execute(qTrans)
+
+        hashed_newPass = sha256_crypt.hash(newPass)
+
+        qUpdate = "UPDATE tbuser SET passwd = %s WHERE email = %s"
+        cursor.execute(qUpdate, (hashed_newPass, credential['email']))
+    
+    except Exception as e:
+        qRollback = "ROLLBACK"
+        cursor.execute(qRollback)
+
+        return JSONResponse(content={"error": str(e), "errorCok":"aok error"}, status_code=500)
+    finally:
+        conn.commit()
+        cursor.close()
+
+    
 
 @app.post("/checkPass")
 async def checkPass(
@@ -144,7 +175,7 @@ async def checkPass(
 
         subject.pop('passwd', None)
 
-        return subject
+        # return subject
     except HTTPException as e:
         # Buat e.detail untuk pass message dari detail
         return JSONResponse(content={"error": e.detail}, status_code=e.status_code)
@@ -174,7 +205,7 @@ def read_curr_users(credential: JwtAuthorizationCredentials = Security(access_se
 
     cursor = conn.cursor()
     try:
-        q0 = "SELECT id_user, nama, email, foto, status_user, roles, pelanggan_id FROM tbuser WHERE email = %s"
+        q0 = "SELECT id_user, nama, email, foto, status_user, roles, pelanggan_id, created_at, updated_at FROM tbuser WHERE email = %s"
         cursor.execute(q0, (credential['email'], ))
         colNames = [kol[0] for kol in cursor.description]
 
@@ -238,11 +269,12 @@ def pesanan(
         #mau buat nested json jualdetil
         q1 = """
             SELECT j.nojual, j.tgltransaksi, j.grandtotal, j.pelanggan_id, j.buktiByr, b.nama_barang,
-            b.gambar, jd.* FROM tbjual j JOIN tbjualdetil jd ON j.nojual = jd.nojual_id
-            JOIN tbbarang b ON jd.id_barang = b.id
+            b.gambar, b.source_data, jd.* FROM tbjual j JOIN tbjualdetil jd ON j.nojual = jd.nojual_id
+            JOIN tbbarang b ON jd.id_barang = b.id JOIN tbuser u ON u.pelanggan_id = j.pelanggan_id 
+            WHERE u.email = %s
         """
 
-        cursor.execute(q1)
+        cursor.execute(q1, (credential['email'], ))
         colNames = [kolom[0] for kolom in cursor.description]
         items = cursor.fetchall()
 
@@ -283,7 +315,8 @@ def pesanan(
                 'created_at': "",
                 'updated_at': "",
                 'nama_barang': row['nama_barang'],
-                'gambar': row['gambar']
+                'gambar': row['gambar'],
+                'source_data': row['source_data']
             }
 
             if nojual in data:

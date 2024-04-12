@@ -199,10 +199,10 @@ async def update_data(
             uploaded_file.append(file.filename)
         
         gambarJson = json.dumps(uploaded_file)        
-        query = "UPDATE tbbarang SET nama_barang=%s, harga=%s, deskripsi=%s where id = %s"
+        query = "UPDATE tbbarang SET nama_barang=%s, harga=%s, gambar = %s, deskripsi=%s, source_data = %s where id = %s"
         # Convert the list to a JSON-formatted string
         # gambar_json = json.dumps(isi.gambar)
-        cursor.execute(query, (nama_barang, harga, deskripsi, id))
+        cursor.execute(query, (nama_barang, harga, gambarJson, deskripsi, 'manual', id))
         conn.commit()
         cursor.close()
 

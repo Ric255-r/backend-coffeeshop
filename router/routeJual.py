@@ -50,6 +50,18 @@ app.add_middleware(
 # /start_transaction -> /bukaNota -> /detailPenjualan -> finalizeTransaction
 # /cancel dapat dilakukan sblm finalize
 
+# Start Otentikasi
+def checkLogin(
+    credential : JwtAuthorizationCredentials = Security(access_security)
+) :
+    if not credential :
+        raise HTTPException(status_code=401, detail="Jual Unauthorized")
+    
+    return credential.subject
+
+authMiddle = Depends(checkLogin)
+# End Otentikasi
+
 
 def handle_penjualan_start() :
     cursor = conn.cursor()
@@ -150,7 +162,12 @@ def cancel_transaction(transaction_num: str) :
         cursor.close()
 
 @app.post('/finalizeTransaction/{transaction_num}')
-async def finalize_transaction(transaction_num: str, buktiByr: UploadFile) :
+async def finalize_transaction(
+    transaction_num: str, 
+    buktiByr: UploadFile,
+    request : Request,
+    loggedIn = authMiddle
+) :
     cursor = conn.cursor()
     try :
         #Start input file. Cek Direktori Exists
@@ -165,6 +182,10 @@ async def finalize_transaction(transaction_num: str, buktiByr: UploadFile) :
         with open(file_location, "wb") as f:
             f.write(content)
         #End input file
+
+        formData = await request.form()
+        nama_pemesan = formData['nama_pemesan']
+        nohp_pemesan = formData['nohp_pemesan']
 
         q1 = """
             INSERT INTO tbjual SELECT * FROM temptbjual WHERE nojual = %s
@@ -185,6 +206,8 @@ async def finalize_transaction(transaction_num: str, buktiByr: UploadFile) :
         cursor.execute(qSubTotal, (transaction_num, ))
         arrSubTotal = cursor.fetchone()
         SubTotal = arrSubTotal[0]
+
+        #Rumus INi Mw Di Ubah
     
         pajak = 0.11
         rumusPajak = SubTotal * pajak
@@ -194,9 +217,9 @@ async def finalize_transaction(transaction_num: str, buktiByr: UploadFile) :
 
         q2 = """
             UPDATE tbjual SET payment = %s, pajak = %s, subtotal = %s, grandtotal = %s, bayar_cash = %s, 
-            kembalian = %s, buktiByr = %s, updated_at = %s where nojual = %s
+            kembalian = %s, buktiByr = %s, updated_at = %s, nama_pemesan = %s, nohp_pemesan = %s, pelanggan_id = %s, status_order = %s where nojual = %s
         """
-        cursor.execute(q2, ('CASH', pajak, SubTotal, grandTotal, bayarCash, kembalian, filename, today, transaction_num))
+        cursor.execute(q2, ('CASH', pajak, SubTotal, grandTotal, bayarCash, kembalian, filename, today, nama_pemesan, nohp_pemesan, loggedIn['pelanggan_id'], 'PENDING', transaction_num))
         conn.commit()
 
         qD = "DELETE FROM temptbjual WHERE nojual = %s"

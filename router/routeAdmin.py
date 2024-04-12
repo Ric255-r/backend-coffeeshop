@@ -411,6 +411,52 @@ def Omset(
     finally:
         cursor.close()
 
+@app.delete('/datauser/{iduser}')
+def deleteUser(
+    iduser: str,
+    loggedIn = authMiddle
+) :
+    cursor = conn.cursor()
+    try:
+        q0 = "START TRANSACTION"
+        cursor.execute(q0)
+
+        qDel = "DELETE FROM tbuser WHERE id_user = %s"
+        cursor.execute(qDel, (iduser, ))
+
+        return True
+    except HTTPException as e:
+        qR = "ROLLBACK"
+        cursor.execute(qR)
+
+        return JSONResponse(content={"error":str(e)}, status_code=e.status_code)
+    finally:
+        conn.commit()
+        cursor.close()
+
+@app.get('/countUser')
+def countUser(
+    loggedIn = authMiddle
+) :
+    cursor = conn.cursor()
+    try:
+        q0 = "SELECT COUNT(*) as jlhuser FROM tbuser WHERE status_user = %s OR roles = %s"
+        cursor.execute(q0, ('Customer', 'Customer'))
+
+        colNames = []
+        for kol in cursor.description:
+            colNames.append(kol[0])
+
+        items = cursor.fetchone()
+        
+        return items[0] # Return Hasil CountData user saja. 
+
+    except HTTPException as e:
+        return JSONResponse(content={"error": str(e)}, status_code=e.status_code)
+    finally:
+        cursor.close()
+
+
 
 
 
